@@ -1,7 +1,7 @@
 from sys import version_info, exit, argv
 from pickle import load, dump
 from re import match, split
-from os import path, mkdir, listdir, remove
+from os import path, mkdir, listdir, remove, system
 from subprocess import call
 from PyQt5 import QtGui, Qt
 from PyQt5.QtWidgets import QPushButton, QCheckBox, QWidget, QVBoxLayout, QLabel, QGroupBox, \
@@ -106,6 +106,13 @@ class Window(QWidget):
         titleLabel.setAlignment(Qt.Qt.AlignCenter)
         titleLabel.setMargin(25)
         vbox.addWidget(titleLabel)
+
+        warningLabel = QLabel("(Close THIS window when you're done, not the black background window)")
+        warningLabel.setAlignment(Qt.Qt.AlignCenter)
+        warningLabel.setMargin(5)
+        vbox.addWidget(warningLabel)
+
+        vbox.addStretch(1)
 
 
         vbox.addWidget(self.GroupBoxOneLayout()) # Adding first/top groupbox to the layout
@@ -313,15 +320,25 @@ class Window(QWidget):
     # -------------- NO MORE LAYOUT DESIGN PAST THIS POINT ---------------------------
     # --------------------------------------------------------------------------------
 
-    # (MAKE THIS CLEANER IN THE FUTURE)
+    # (MAKE THIS CLEANER IN THE FUTURE - use zip())
     # (At startup) Opens text files containing code flags/descriptions and
     #   puts data into separate dictionaries
     def initCodes(self):
         codeLists = ["Codes-Aesthetic.txt", "Codes-Experimental.txt", "Codes-Gamebreaking.txt",
                      "Codes-Major.txt", "Codes-Minor.txt", "Codes-Simple.txt"]
 
+        #@SubtractionSoup - https://github.com/subtractionsoup/beyondchaos/blob/master/utils.py
+        try:
+            from sys import _MEIPASS
+            tblpath = path.join(_MEIPASS, "gui-codes")
+        except ImportError:
+            tblpath = "gui-codes"
+
         for fileList in codeLists:
-            with open("gui-codes/" + fileList, 'r') as fl:
+            codePath = path.join(tblpath, fileList)
+
+            with open(codePath, 'r') as fl:
+            #with open("gui-codes/" + fileList, 'r') as fl:
                 content = fl.readlines()
 
                 if fileList == "Codes-Aesthetic.txt":
@@ -517,9 +534,18 @@ class Window(QWidget):
                             f"(Hyphens are not actually used in seed generation)"))
             messBox = QMessageBox.question(self, "Confirm Seed Generation?", message, QMessageBox.Yes| QMessageBox.Cancel)
             if messBox == 16384:  # User selects confirm/accept/yes option
-                finalFlags = self.flags.replace(" ", "")
+                #get path to randomizer - temp directory, or local
+                try:
+                    from sys import _MEIPASS
+                    randoPath = _MEIPASS
+                except ImportError:
+                    randoPath = "."
+                fullRandoPath = path.join(randoPath, "randomizer.py")
+
+                finalFlags = self.flags.replace(" ", "") #cleanup flag string
                 bundle = f"{self.version}.{self.mode}.{finalFlags}.{self.seed}"
-                call(["py", "randomizer.py", self.romText, bundle, "test"])
+                # Call to randomizer passing sys args
+                call(["py", fullRandoPath, self.romText, bundle, "test"], shell=True)
 
     # read each dictionary and update text field showing flag codes based upon
     #    flags denoted as 'True'
